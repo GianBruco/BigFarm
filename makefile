@@ -4,7 +4,7 @@ CFLAGS=-g -Wall -O -std=gnu99
 LDLIBS=-lm -lrt -pthread 
 
 # eseguibili
-EXECS=farm
+EXECS=farm client
 
 # da ignorare
 .PHONY: clean
@@ -16,6 +16,7 @@ all: $(EXECS)
 # perché il default di make in questo caso va bene
 
 farm: farm.o xerrori.o
+client: client.o xerrori.o
 
 # target che cancella eseguibili e file oggetto
 clean:

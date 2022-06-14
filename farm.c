@@ -6,15 +6,14 @@
 
 // struct contenente i parametri di input e output di ogni thread 
 typedef struct {
+  int *BuffSize; // randezza buffer
   long sommaFile; // output
   int *indWork; // indice nel buffer (puntatore così non cambia per tutti i Worker)
-  int *buffer;  // puntatore al buffer condiviso
+  char* *buffer;  // puntatore al buffer condiviso
 	pthread_mutex_t *cmutex; // puntatore al mutex dei Worker
   sem_t *sem_free_slots;  // puntatore agli slot liberi
   sem_t *sem_data_items;  // puntatore ai dati inseriti
 } dati;
-
-
 
 
 // funzione eseguita dai thread Worker
@@ -22,21 +21,35 @@ void *tbody(void *arg)
 {  
   dati *a = (dati *)arg;
   a->sommaFile = 0;
-  int n;
-  do {
-    xsem_wait(a->sem_data_items,__LINE__,__FILE__); // attende la presenza di qualcosa nel buffer
-		xpthread_mutex_lock(a->cmutex,__LINE__,__FILE__); // blocco la scrittura agli altri Worker
-    n = a->buffer[*(a->indWork) % lBuffer]; // n è il file da analizzare
-    *(a->indWork) +=1;  // vado avanti con l'indice nel buffer
-		xpthread_mutex_unlock(a->cmutex,__LINE__,__FILE__); // rilascio il blocco mutex
-    xsem_post(a->sem_free_slots,__LINE__,__FILE__); // rilascio il semaforo
+  char * nomeFile; 
+  xsem_wait(a->sem_data_items,__LINE__,__FILE__); // attende la presenza di qualcosa nel buffer
+	xpthread_mutex_lock(a->cmutex,__LINE__,__FILE__); // blocco la scrittura agli altri Worker
+  fprintf(stdout,"posizione: %d\n",(*(a->indWork) % *(a->BuffSize)));
+  nomeFile = a->buffer[*(a->indWork) % *(a->BuffSize)]; // n è il file da analizzare
+  *(a->indWork)+=1;  // vado avanti con l'indice nel buffer
+	xpthread_mutex_unlock(a->cmutex,__LINE__,__FILE__); // rilascio il blocco mutex
+  xsem_post(a->sem_free_slots,__LINE__,__FILE__); // rilascio il semaforo
     
-
-    sommaFile+=n;
-
-
-  } while(n!= -1);
+  fprintf(stdout,"leggo il file %s\n",nomeFile);
+  // Leggo il file passato come argomento
+  FILE *f = fopen(nomeFile,"rb");
+  if(f==NULL) {
+		perror("Errore apertura file"); 
+    pthread_exit(NULL);
+  }
+  // sommo tutti i long presenti nel filme
+	long numero=0;
+  size_t e;
+  do {
+     a->sommaFile+=numero;
+    e=fread(&numero,sizeof(long),1,f);
+   
+  } while(e==sizeof(long))
+  // stampo la somma
+  fprintf(stdout,"la somma totale per il file %s e' di %ld",nomeFile,a->sommaFile);
+	fclose(f);
   pthread_exit(NULL); 
+
 } 
 
 
@@ -54,7 +67,6 @@ int main(int argc, char *argv[])
   int nthread = 4;  // numero di thread Worker del processo master (default 4)
   int lBuffer = 8;  // lunghezza del buffer produttori/consumatori (default 8)
   int delay = 0;    // tempo in millisecondi tra una scrittura e l'altra del Master (default 0)
-  long tot_somma = 0;
 
   // controllo le opzioni date dall'utente
   while((opz = getopt(argc, argv, "n:q:t:")) != -1) { 
@@ -77,10 +89,13 @@ int main(int argc, char *argv[])
   }
 
 
+
 //-------------------------------
 
-  int buffer[lBuffer];  // inizializzo il buffer di dimensione lBuffer
-  int pindex = 0; // indice del produttore
+  char * buffer[lBuffer];  // inizializzo il buffer di dimensione lBuffer
+  int indWork = 0; // indice del Worker
+  int indMast = 0; // indice del Master
+  pthread_mutex_t cmutex = PTHREAD_MUTEX_INITIALIZER;
   pthread_t thr[nthread]; // thread Worker
   dati a[nthread];  // inizializzo contenuto dei thread Worker
 
@@ -93,8 +108,9 @@ int main(int argc, char *argv[])
   // generazione dei thread
   for(int i = 0; i<nthread;i++) {
     a[i].buffer = buffer;
-    a[i].indCons = &indCons;
+    a[i].indWork = &indWork;
     a[i].cmutex = &cmutex;
+    a[i].BuffSize = &lBuffer;
     a[i].sem_data_items = &sem_data_items;
     a[i].sem_free_slots = &sem_free_slots;
     xpthread_create(&thr[i],NULL,tbody,a+1,__LINE__,__FILE__);
@@ -103,47 +119,25 @@ int main(int argc, char *argv[])
 
   // lettura dei file
   for(int k = nopz;k<argc;k++) {
-    FILE *f = fopen(argv[k],"r"); // apre IL PRIMO file
-    if(f==NULL) {perror("Errore apertura file"); return 1;}
-
-    // WORKER
-    while(true) {
-      e = fscanf(f,"%ld", &n);
-      if(e!=1) break; // se il valore e' letto correttamente e==1
-      assert(n>0);    // i valori del file devono essere positivi
       xsem_wait(&sem_free_slots,__LINE__,__FILE__); // blocco il semaforo
-      buffer[pindex++ % lBuffer]= n; // scrivo sempre nel modulo lBuffer (Se pindex è 15 e lBuffer è 10 scrivo in 5)
+      fprintf(stdout,"scrivo il file %s nel buffer alla posizione%d\n",argv[k],indMast % lBuffer);
+      buffer[indMast % lBuffer] = argv[k]; // scrivo in modulo lBuffer il nome del file
+      fprintf(stdout,"buffer in posizione %d: %s\n",indMast % lBuffer,argv[k]);
+      indMast+=1;
       xsem_post(&sem_data_items,__LINE__,__FILE__); // sblocco il semaforo
       usleep(delay);
-    }
   }
+
   // terminazione threads
   for(int i=0;i<nthread;i++) {
     xsem_wait(&sem_free_slots,__LINE__,__FILE__);
-    buffer[pindex++ % lBuffer]= -1; // scrivo un valore illegale per far capire al consumatore che devo terminare
+    buffer[indMast % lBuffer]= NULL; // scrivo un valore illegale per far capire al consumatore che devo terminare
+    indMast+=1;
     xsem_post(&sem_data_items,__LINE__,__FILE__);
   }
-  // join dei thread e calcolo risulato
-  for(int i=0;i<nthread;i++) {
-    xpthread_join(thr[i],NULL,__LINE__,__FILE__);
-    tot_somma += a[i].sommaFile; // somma finale del thread principaòe
-  }
 
-
-
-
-  fprintf(stderr,"Trovati %d primi con somma %ld\n",tot_primi,tot_somma);
-
-
-
-
-
-//printf("argc = %d\nargv[2] = %s\nargv[nopz] = %s\n",argc,argv[2],argv[nopz]);
-
-
-
-
-  //printf("nthread = %d\nbuf = %d\ndel = %d\n",nthread,lBuffer,delay);
+// DEVO GESTIRE SIGINT
+// DEVO DEALLOCARE E TERMINARE TUTTO PERBENE ALLLA FINE
 
 	return 0;
 }
