@@ -63,3 +63,7 @@ int xpthread_mutex_lock(pthread_mutex_t *mutex, int linea, char *file);
 int xpthread_mutex_unlock(pthread_mutex_t *mutex, int linea, char *file);
 
 
+/* Read "n" bytes from a descriptor */
+ssize_t readn(int fd, void *ptr, size_t n);
+/* Write "n" bytes to a descriptor */
+ssize_t writen(int fd, void *ptr, size_t n);
