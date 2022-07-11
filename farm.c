@@ -8,7 +8,7 @@
 #include <unistd.h>		//
 #include <arpa/inet.h>	// conversione dati in formato inet
 #include <sys/socket.h> // permette l'utilizzo dei socket
-#include "xerrori.h"	// funzione termina, xpthread ecc.
+#include "libBigFarm.h"	// funzione termina, xpthread ecc.
 
 // variabili per la trasmissione tramite TCP localhost
 #define HOST "127.0.0.1"
@@ -16,7 +16,7 @@
 
 #define MAX_STRING 100	// dimensione massima di una stringa (per conversioni da long)
 
-bool fine = false;		// booleano per la terminazione del programma con SIGINT
+volatile bool fine = false;		// booleano per la terminazione del programma con SIGINT
 
 // struct con parametri input e output dei thread
 typedef struct
@@ -159,15 +159,15 @@ int main(int argc, char *argv[])
 		switch (opz)
 		{
 		case 'n':
-			nthread = atoi(optarg);
+			nthread = strtol(optarg, NULL, 10);
 			nopz += 2;
 			break;
 		case 'q':
-			lBuffer = atoi(optarg);
+			lBuffer = strtol(optarg, NULL, 10);
 			nopz += 2;
 			break;
 		case 't':
-			delay = atoi(optarg);
+			delay = strtol(optarg, NULL, 10);
 			nopz += 2;
 			break;
 		default:
@@ -183,8 +183,6 @@ int main(int argc, char *argv[])
 	
 	struct sigaction sa;			// definisco un signal Handler per SIGINT
 	sa.sa_handler = &handlerInt;	// definisco la funzione da usare per il sengnale
-	//sigemptyset(&sa.sa_mask);		// per la gestione di più segnali ()
-	//sa.sa_flags = SA_RESTART;		// per riprendere la system call interrotta ()
 	sigaction(SIGINT, &sa, NULL);
 
 	char *buffer[lBuffer];								// inizializzo il buffer di dimensione lBuffer
@@ -216,19 +214,18 @@ int main(int argc, char *argv[])
 
 	// lettura dei file
 	int k = nopz; // inizio dei file
-	while ((k < argc))
+	while ((k < argc) && fine==false)
 	{
 		xsem_wait(&sem_free_slots, __LINE__, __FILE__);
 		// controllo se nel buffer non è presente la stringa "FINE"
-		if (strncmp(buffer[indMast % lBuffer], "FINE", 4) != 0) 
+		if (fine==false) 
 		{
 			buffer[indMast % lBuffer] = argv[k]; // scrivo in modulo lBuffer il nome del file
 			indMast += 1;
 		}
 		else
 		{
-			fine = true;
-			puts("fine è true, quindi chiudo");
+			puts("Programma interrotto!");
 		}
 		xsem_post(&sem_data_items, __LINE__, __FILE__); // sblocco il semaforo
 		k++;											// contatore dei file input
@@ -250,7 +247,6 @@ int main(int argc, char *argv[])
 	sem_close(&sem_free_slots);
 	sem_close(&sem_data_items);
 	xpthread_mutex_destroy(&cmutex, __LINE__, __FILE__);
-
 
 	return 0;
 }

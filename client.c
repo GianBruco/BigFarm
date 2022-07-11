@@ -7,8 +7,8 @@
 #include <errno.h>		// richiesto per usare errno
 #include <unistd.h>		//
 #include <arpa/inet.h>	// conversione dati in formato inet
-#include <sys/socket.h> // permette l'utilizzo dei socket
-#include "xerrori.h"	// funzione termina, xpthread ecc.
+#include <sys/socket.h>	// permette l'utilizzo dei socket
+#include "libBigFarm.h"	// funzione termina, xpthread ecc.
 
 #define HOST "127.0.0.1"
 #define PORT 57937

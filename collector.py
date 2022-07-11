@@ -28,17 +28,13 @@ def recv_all(conn, n):
 # funzione per l'invio e la ricezione dei dati dai vari socket
 def gestioneDati(conn):
 	with conn:
-		print(f"Sono stato contattato con {addr}")
-		
 		# leggo i primi 4 byte che rappresentano il numero della scelta
 		data = recv_all(conn, 4)
 		scelta = struct.unpack("!i", data[:4])[0]
-		print(f"Ho riceuto il valore {scelta}")
 
 		if not data:			# se ricevo 0 bytes la connessione è terminata
 			return -1
 		if scelta == 1:
-			print("Ho riceuto 1, invio tutte le coppie")
 			conn.sendall(struct.pack("!i", len(coppie)))
 			# stampo le coppie
 			for k in coppie:
@@ -51,7 +47,6 @@ def gestioneDati(conn):
 				conn.sendall(nome.encode())					# mando il nome del file
 
 		elif scelta == 2:
-			print("Ho riceuto 2, leggo i numeri e stampo le coppie con quella somma")
 			data = recv_all(conn, 4)
 			nLongs = struct.unpack("!i", data[:4])[0]		# leggo il numero di long da leggere
 			for i in range(nLongs):
@@ -76,10 +71,9 @@ def gestioneDati(conn):
 					conn.sendall("Nessun file".encode())				# mando la stringa "Nessun file"
 				else:
 					conn.sendall(struct.pack("!i", len(listaout)))	# mando la lunghezza di "Nessun file"
-					conn.sendall(listaout.encode())				# mando la stringa "Nessun file"
+					conn.sendall(listaout.encode())					# mando la stringa "Nessun file"
 
 		elif scelta == 3:
-			print("Ho riceuto 3, inserisco una nuova coppia")
 			
 			dati = recv_all(conn, 4)
 			lunghezzaS = struct.unpack("!i", dati[:4])[0]			# leggo la lunghezza di somma
@@ -91,14 +85,20 @@ def gestioneDati(conn):
 			lunghezzaF = struct.unpack("!i", dati[:4])[0]			# leggo la lunghezza del nome file
 			data = recv_all(conn, lunghezzaF)
 			nomeCoppia = data[:lunghezzaF].decode(encoding='ascii')	# leggo la stringa nome
-			coppie.append([sommaCoppia, nomeCoppia])
-			coppie.sort(key=sortCoppie)
+			esiste=0
+			for j in (coppie):
+				if(j[0]==sommaCoppia) and (j[1]==nomeCoppia):
+					esiste=1
+			if(esiste==0):
+				coppie.append([sommaCoppia, nomeCoppia])
+				coppie.sort(key=sortCoppie)
 
 
 # main
 coppie = []
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 	try:
+		s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		s.bind((HOST, PORT))
 		s.listen()
 		inputsk = [s]
@@ -111,13 +111,13 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 				for pronti in inready:
 					if pronti is s:
 						conn, addr = s.accept()
-						print(f"Contattato da {addr}")
+						print(f"Mi ha contattato {addr}")
 						inputsk.append(conn)
 					else:
 						inputsk.remove(pronti)
 						gestioneDati(pronti)
 						
-		print("Errore: inputsk è vuoto")
+		print("La lista di socket in input è vuota")
 	except KeyboardInterrupt:
 		print('Fine dei giochi!')
 

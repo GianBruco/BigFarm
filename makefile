@@ -12,11 +12,8 @@ EXECS=farm client
 # di default make cerca di realizzare il primo target 
 all: $(EXECS)
 
-# non devo scrivere il comando associato ad ogni target 
-# perché il default di make in questo caso va bene
-
-farm: farm.o xerrori.o
-client: client.o xerrori.o
+farm: farm.o libBigFarm.o
+client: client.o libBigFarm.o
 
 # target che cancella eseguibili e file oggetto
 clean:
