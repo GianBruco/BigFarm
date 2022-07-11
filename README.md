@@ -17,10 +17,8 @@ Il progetto consiste in tre diversi file che svolgono la funzione di *produttore
 - `z0.dat` contenente 3 `long` con somma 9876543210
 
 - `z1.dat` contenente 3 `long` con somma -1
-
- Vediamo più nello specifico.
-
-
+  
+  Vediamo più nello specifico.
 
 ## Farm.c
 
@@ -38,8 +36,6 @@ Dopo i controlli del caso vengono generati `n` thread e ogni nome file viene scr
 
 Il funzionamento dei thread (funzione `tbody`) è il seguente; viene letto dal buffer il nome del file, se è un file esistente si procede a leggerne i long contenuti e fare la somma. Per finire viene spedita la coppia `[sommaFile,nomeFile]` tramite *socket* al *server* (con la funzione `invioCoppia`). 
 
-
-
 ## Collector.py
 
 Questo programma, scritto in linguaggio Python, svolge il ruolo di server e gestisce 3 tipi di richieste. Queste stesse sono identificate dall'arrivo di un primo intero. In particolare:
@@ -50,8 +46,6 @@ Questo programma, scritto in linguaggio Python, svolge il ruolo di server e gest
 
 - `3` nel caso il programma `farm.c` invii una nuova coppia `[sommaFile,nomeFile]` da inserire all'interno del *server*
 
-
-
 ## Client.c
 
 Questo programma, scritto in linguaggio C, svolge il ruolo di *client* e puù inviare al server due tipi di richieste.
@@ -59,8 +53,6 @@ Questo programma, scritto in linguaggio C, svolge il ruolo di *client* e puù in
 Nel caso venga eseguito senza parametri verrà inviata una richiesta di tipologia `1` e si richiederà al *server* (eseguibile `collector.py`) di mandare tutte le coppie `[sommaFile,nomeFile]` in suo possesso.
 
 Se il programma viene eseguito con argomenti (interi di tipo long), essi vengono inviati al *server* (richiesta di tipologia `2`) che ci si aspetta ritorni un messaggio con la stringa `Nessun File` nel caso non esistesse una coppia con la data somma mentre la stringa contentente la somma e il file rispettivo in alternativa.
-
-
 
 # Test:
 
