@@ -29,10 +29,11 @@ def recv_all(conn, n):
 def gestioneDati(conn):
 	with conn:
 		# leggo i primi 4 byte che rappresentano il numero della scelta
-		data = recv_all(conn, 4)
-		scelta = struct.unpack("!i", data[:4])[0]
+		dati = recv_all(conn, 4)
+		scelta = struct.unpack("!i", dati[:4])[0]
 
-		if not data:			# se ricevo 0 bytes la connessione è terminata
+		# se ricevo 0 bytes la connessione è terminata
+		if not dati:
 			return -1
 		if scelta == 1:
 			conn.sendall(struct.pack("!i", len(coppie)))
@@ -47,44 +48,52 @@ def gestioneDati(conn):
 				conn.sendall(nome.encode())					# mando il nome del file
 
 		elif scelta == 2:
-			data = recv_all(conn, 4)
-			nLongs = struct.unpack("!i", data[:4])[0]		# leggo il numero di long da leggere
+			dati = conn.recv(4)
+			nLongs = struct.unpack("!i", dati[:4])[0]		# leggo il numero di long da leggere
 			for i in range(nLongs):
-				
-				dati = recv_all(conn, 4)
-				lunghezza = struct.unpack("!i", dati[:4])[0]	# leggo la lunghezza di l
-				data = recv_all(conn, lunghezza)
-				num = data[:lunghezza].decode(encoding='ascii')	# leggo il long (in formato stringa)
+				lunghezza=0
+				num=''
+				dati = conn.recv(2)
+				lunghezza = struct.unpack("!h", dati[:2])[0]	# leggo la lunghezza di l
+
+				dati = conn.recv(lunghezza)
+				num = dati[:lunghezza].decode(encoding='ascii')	# leggo il long (in formato stringa)
 				a = int(num)									# converto in numero
 				esiste = 0
 				nOut = 0
 				listaout=''
-				# controllo se esiste nella lista coppie
+
+				# controllo se esiste già nella lista coppie
 				for c in (coppie):
 					if(c[0] == a):
 						esiste = 1
 						listaout=f'{c[0]} {c[1]}'
+						conn.sendall(struct.pack("!i", len(listaout)))
+						conn.sendall(listaout.encode())
+						listaout=''
 
 				# se non esiste stampo "Nessun file"
 				if(esiste == 0):
 					conn.sendall(struct.pack("!i", len("Nessun file")))	# mando la lunghezza di "Nessun file"
 					conn.sendall("Nessun file".encode())				# mando la stringa "Nessun file"
-				else:
-					conn.sendall(struct.pack("!i", len(listaout)))	# mando la lunghezza di "Nessun file"
-					conn.sendall(listaout.encode())					# mando la stringa "Nessun file"
+
+			conn.sendall(struct.pack("!i", len("FINE")))
+			conn.sendall("FINE".encode())
+					
+				
 
 		elif scelta == 3:
 			
 			dati = recv_all(conn, 4)
 			lunghezzaS = struct.unpack("!i", dati[:4])[0]			# leggo la lunghezza di somma
-			data = recv_all(conn, lunghezzaS)
-			sommaCoppia = data[:lunghezzaS].decode(encoding='ascii')# leggo la stringa somma
+			dati = recv_all(conn, lunghezzaS)
+			sommaCoppia = dati[:lunghezzaS].decode(encoding='ascii')# leggo la stringa somma
 			sommaCoppia = int(sommaCoppia)
 			
 			dati = recv_all(conn, 4)
 			lunghezzaF = struct.unpack("!i", dati[:4])[0]			# leggo la lunghezza del nome file
-			data = recv_all(conn, lunghezzaF)
-			nomeCoppia = data[:lunghezzaF].decode(encoding='ascii')	# leggo la stringa nome
+			dati = recv_all(conn, lunghezzaF)
+			nomeCoppia = dati[:lunghezzaF].decode(encoding='ascii')	# leggo la stringa nome
 			esiste=0
 			for j in (coppie):
 				if(j[0]==sommaCoppia) and (j[1]==nomeCoppia):
@@ -104,9 +113,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 		inputsk = [s]
 		while len(inputsk) > 0:
 			inready, _, _ = select.select(inputsk, [], [], 10)		# controllo i dati ogni 10 secondi
-			if len(inready) == 0:
-				print("Non è arrivato nulla per ora")
-			else:
+			if len(inready) != 0:
+
 				# per ogni socket con dati pronti
 				for pronti in inready:
 					if pronti is s:
@@ -119,7 +127,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 						
 		print("La lista di socket in input è vuota")
 	except KeyboardInterrupt:
-		print('Fine dei giochi!')
+		print('Chiudo il server!')
 
 	# spengo il server
 	s.shutdown(socket.SHUT_RDWR)

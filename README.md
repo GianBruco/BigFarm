@@ -65,7 +65,7 @@ make
 ./collector.py &
 ./client -1
 ./farm z?.dat
-./client 9876543210 1
+./client 9876543210 1 -1
 ./client
 ```
 
@@ -75,6 +75,7 @@ con il seguente output:
 Nessun file        (risposta alla richiesta di somma -1)
 9876543210 z0.dat  (risposta alla richiesta di somma 9876543210)
 Nessun file        (risposta alla richiesta di somma 1)
+        -1 z1.dat  (risposta alla richiesta di somma -1)
         -1 z1.dat  (risposta alla richiesta di tutte le coppie)
 9876543210 z9.dat
 ```

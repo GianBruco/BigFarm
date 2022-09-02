@@ -10,7 +10,7 @@ void termina(const char *messaggio)
 	else
 		fprintf(stderr, "== %d == %s: %s\n", getpid(), messaggio,
 				strerror(errno));
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 // funzione termina con aggiunta di linea e file
